@@ -1,14 +1,17 @@
 
-# imports
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
+# Import Libraries
 import numpy as np
 import pandas as pd
 import pickle
-from pprint import pprint
 import re
 import sys
+import time
+import warnings
+
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.metrics import classification_report
@@ -18,8 +21,7 @@ from sklearn.multioutput import MultiOutputClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sqlalchemy import create_engine
-import time
-import warnings
+
 warnings.filterwarnings('ignore')
 
 
@@ -33,18 +35,19 @@ def load_data(database_filepath):
     Returns:
     X pandas_dataframe: Features dataframe
     Y pandas_dataframe: Target dataframe
-    category_names list: Target labels 
+    category_names list: Target labels
     """
     engine = create_engine('sqlite:///{}'.format(database_filepath))
-    df = pd.read_sql_table('DisasterResponse', con = engine)
-    X,Y = df['message'], df.iloc[:,4:]
 
-    # Y['related'] contains three distinct values
-    # mapping extra values to `1`
-    Y['related']=Y['related'].map(lambda x: 1 if x == 2 else x)
+    df = pd.read_sql_table('DisasterResponse', con = engine)
+
+    X = df['message']
+    Y = df.iloc[:,4:]
+
+    Y['related']= Y['related'].map(lambda x: 1 if x == 2 else x)
     category_names = Y.columns
 
-    return X, Y, category_names 
+    return X, Y, category_names
 
 def tokenize(text):
     """
@@ -58,14 +61,14 @@ def tokenize(text):
     """
     # Normalize text
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
-    
+
     # tokenize text
     words = word_tokenize(text)
-    
+
     # remove stop words
     stopwords_ = stopwords.words("english")
     words = [word for word in words if word not in stopwords_]
-    
+
     # extract root form of words
     words = [WordNetLemmatizer().lemmatize(word, pos='v') for word in words]
 
@@ -75,7 +78,7 @@ def tokenize(text):
 def build_model():
     """
     Build model with GridSearchCV
-    
+
     Returns:
     Trained model after performing grid search
     """
@@ -93,7 +96,6 @@ def build_model():
     # create model
     model = GridSearchCV(estimator=pipeline,
             param_grid=parameters,
-            verbose=3,
             cv=3)
     return model
 
@@ -121,7 +123,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 def save_model(model, model_filepath):
     """
-    Saves the model to a Python pickle file    
+    Saves the model to a Python pickle file
     Args:
     model: Trained model
     model_filepath: Filepath to save the model
@@ -137,13 +139,13 @@ def main():
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-        
+
         print('Building model...')
         model = build_model()
-        
+
         print('Training model...')
         model.fit(X_train, Y_train)
-        
+
         print('Evaluating model...')
         evaluate_model(model, X_test, Y_test, category_names)
 
